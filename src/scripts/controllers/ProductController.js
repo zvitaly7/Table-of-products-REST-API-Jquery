@@ -89,8 +89,9 @@ export class ProductController {
     fillDataObj(obj) {
         obj.name = $('#name-product').val();
         obj.email = $('#email-supplier').val();
-        obj.count = $('#count-product').val();
-        obj.price = $('#price-product').val();
+        obj.count = Number($('#count-product').val());
+        obj.price = Number($('#price-product').val().split('$').join('').trim());
+        console.log(obj.price);
         obj.delivery = {
             country: "string",
             city: [
