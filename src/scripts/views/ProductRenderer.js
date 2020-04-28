@@ -48,9 +48,6 @@ export class ProductRenderer {
         $('#count-product').on('change keyup input click', this.pressHandler);
         $('#price-product').focusout(this.formatPriceHandler);
         $('#price-product').focusin(this.formatNumberHandler);
-
-
-
     }
 
 

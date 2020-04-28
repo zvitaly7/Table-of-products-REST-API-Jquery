@@ -33,7 +33,8 @@ export class ProductListModel {
         fetch(Url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain;charset=UTF-8'
+                'accept': 'application/json',
+                'Content-Type': 'application/json;charset=UTF-8'
             },
             body: JSON.stringify(product)
         }).then(response => response.ok).then(
