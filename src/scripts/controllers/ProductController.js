@@ -1,13 +1,15 @@
-import {ProductListModel} from "../models/ProductList";
 import {ProductRenderer} from "../views/ProductRenderer";
-import {App} from "../index";
 import {ProductValidator} from "./ProductValidator";
+import {ProductService} from "../models/ProductService";
+import {CompareProducts} from "./CompareProducts";
+
 
 export class ProductController {
     constructor() {
         this.render = new ProductRenderer();
-        this.model = new ProductListModel(this.render);
+        this.model = new ProductService(this.render);
         this.validator = new ProductValidator();
+        this.comparator = new CompareProducts();
         this.loadData();
         this.$nameElem = $('#name-index, #price-index');
         this.$nameElem.click(this.sortHandler.bind(this));
@@ -30,10 +32,9 @@ export class ProductController {
         this.render.RenderAddWindow();
         $('#btnClose').click(this.closeHandler.bind(this));
         $('#btnAddProduct').click(this.confirmAddProductHandler.bind(this));
-    }
-
-    addProduct(e) {
-
+        $('#count-product').on('change keyup input click', this.pressHandler);
+        $('#price-product').focusout(this.formatPriceHandler);
+        $('#price-product').focusin(this.formatNumberHandler);
     }
 
     showDeleteWindow(e) {
@@ -57,9 +58,18 @@ export class ProductController {
         this.render.HideWindow(addWindow);
     }
 
-    showEditWindow() {
-        this.render.RenderAddWindow();
+    showEditWindow(e) {
+        this.targetID = $(e.currentTarget).attr('data-id');
+        let productData = this.model.productlist.Data[this.findProductIDinTab(this.targetID)];
+        this.render.RenderEditWindow(productData);
+        this.render.showSelect(productData);
         $('#btnClose').click(this.closeHandler.bind(this));
+        $('#btnEditProduct').click(this.confirmEditProduct.bind(this));
+        $('#window-product-add input[type=text]').focusout(this.checkValidatorFocusOutHandler.bind(this));
+        $('#count-product').on('change keyup input click', this.pressHandler);
+        $('#price-product').focusout(this.formatPriceHandler);
+        $('#price-product').focusin(this.formatNumberHandler);
+
     }
 
     sortHandler() {
@@ -73,6 +83,26 @@ export class ProductController {
 
     }
 
+    findProductIDinTab(id) {
+        let product = null;
+        product = this.model.productlist.Data.findIndex(function getId(product) {
+            return product.id === id;
+        });
+        return product;
+
+    }
+
+    confirmEditProduct(e) {
+        e.preventDefault();
+        let product = {};
+        this.fillDataObj(product);
+        if (!this.checkValidator(product)) {
+            this.model.updateProduct(product, this.targetID);
+        } else {
+            this.render.errorRender.ShowErrorMessages(this.validator.validator.messages);
+        }
+    }
+
     confirmAddProductHandler(e) {
         e.preventDefault();
         let product = {};
@@ -82,20 +112,23 @@ export class ProductController {
 
             this.model.addProduct(product);
         } else {
-            this.render.ShowErrors(this.validator.validator.messages);
+            this.render.errorRender.ShowErrorMessages(this.validator.validator.messages);
         }
     }
 
     fillDataObj(obj) {
+        let checkedCity = [];
+        $('input:checkbox:checked').each(function () {
+            checkedCity.push($(this).val());
+        });
+        let Country = $('input[type="radio"]:checked').val();
         obj.name = $('#name-product').val();
         obj.email = $('#email-supplier').val();
-        obj.count = $('#count-product').val();
-        obj.price = $('#price-product').val();
+        obj.count = Number($('#count-product').val());
+        obj.price = Number($('#price-product').val().split('$').join('').trim());
         obj.delivery = {
-            country: "string",
-            city: [
-                "string"
-            ]
+            country: Country,
+            city: checkedCity
         };
     }
 
@@ -113,14 +146,25 @@ export class ProductController {
 
     }
 
+    checkValidatorFocusOutHandler(e) {
+        let product = {};
+        this.fillDataObj(product);
+        if (!this.checkValidator(product)) {
+            this.render.errorRender.HideError($(e.currentTarget));
+        } else {
+            this.render.errorRender.ShowErrorMessages(this.validator.validator.messages);
+        }
+    }
+
+
     sortTable($hideElem, $showElem, fieldSort, productsList) {
         if (this.click) {
             this.click = 0;
-            productsList.sort(this.CompareProducts(fieldSort, -1));
+            productsList.sort(this.comparator.Compare(fieldSort, -1));
             this.render.RenderSort($hideElem, $showElem, fieldSort, productsList, 1);
         } else {
             this.click = 1;
-            productsList.sort(this.CompareProducts(fieldSort, 1));
+            productsList.sort(this.comparator.Compare(fieldSort, 1));
             this.render.RenderSort($hideElem, $showElem, fieldSort, productsList, -1);
         }
     }
@@ -129,54 +173,36 @@ export class ProductController {
         let searchInput = $('#products-name').val().toLowerCase();
         let products = [];
         this.model.productlist.Data.forEach(item => {
-            if (item.name.includes(searchInput)) {
+            if (item.name.toLowerCase().includes(searchInput)) {
                 products.push(item);
             }
+            this.render.RenderList(products);
         });
-        this.render.RenderList(products);
+
     }
 
-    CompareProducts(field, order) {
-        let len = arguments.length;
-        if (len === 0) {
-            return (a, b) => (a < b && -1) || (a > b && 1) || 0;
+    pressHandler() {
+        if (this.value.match(/[^0-9]/g)) {
+            this.value = this.value.replace(/[^0-9]/g, '');
         }
-        if (len === 1) {
-            switch (typeof field) {
-                case 'number':
-                    return field < 0 ?
-                        ((a, b) => (a < b && 1) || (a > b && -1) || 0) :
-                        ((a, b) => (a < b && -1) || (a > b && 1) || 0);
-                case 'string':
-                    return (a, b) => (a[field] < b[field] && -1) || (a[field] > b[field] && 1) || 0;
-            }
-        }
-        if (len === 2 && typeof order === 'number') {
-            return order < 0 ?
-                ((a, b) => (a[field] < b[field] && 1) || (a[field] > b[field] && -1) || 0) :
-                ((a, b) => (a[field] < b[field] && -1) || (a[field] > b[field] && 1) || 0);
-        }
-        let fields, orders;
-        if (typeof field === 'object') {
-            fields = Object.getOwnPropertyNames(field);
-            orders = fields.map(key => field[key]);
-            len = fields.length;
-        } else {
-            fields = new Array(len);
-            orders = new Array(len);
-            for (let i = len; i--;) {
-                fields[i] = arguments[i];
-                orders[i] = 1;
-            }
-        }
-        return (a, b) => {
-            for (let i = 0; i < len; i++) {
-                if (a[fields[i]] < b[fields[i]]) return orders[i];
-                if (a[fields[i]] > b[fields[i]]) return -orders[i];
-            }
-            return 0;
-        };
     }
+
+    formatNumberHandler() {
+        if (this.value) {
+            this.value = this.value.slice(1);
+            this.value = parseFloat(this.value.replace(/,/g, '')).toFixed(2);
+        }
+    }
+
+    formatPriceHandler() {
+        if (this.value) {
+            let currency = '$';
+            return this.value = currency + parseFloat(this.value).toFixed(2).replace(/(\d)(?=(\d{3})+\.)/g, '$1,');
+
+        }
+    }
+
+
 }
 
 

@@ -1,7 +1,5 @@
-
-
 export class ProductValidator {
-    constructor(){
+    constructor() {
         this.validator = {
             types: {},
             //сообщения об ошибках
@@ -80,14 +78,6 @@ export class ProductValidator {
         };
 
 
-
     }
-
-    getValidator(){
-        return this.validator;
-    }
-
-
-
 
 }

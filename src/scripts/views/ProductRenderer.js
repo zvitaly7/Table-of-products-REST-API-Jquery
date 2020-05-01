@@ -1,15 +1,18 @@
-import {ProductController} from "../controllers/ProductController";
+
+import {ShowErrors} from "./ShowErrors";
+
 
 export class ProductRenderer {
-    constructor(){
+    constructor() {
         this.addWindow = $('#window-product-add');
         this.deleteWindow = $('#window-product-delete');
         this.overlay = $('#overlay');
+        this.errorRender = new ShowErrors();
     }
 
     prepareRow(name, price, count, rowNum, id) {
         return `
-        <tr data-id="${rowNum}" class="table-data">
+        <tr data-id="${id}" class="table-data">
             <td>${rowNum}</td>
             <td>
                 <a href="#" class="product-name">${name}</a>
@@ -32,25 +35,39 @@ export class ProductRenderer {
     }
 
     RenderDeleteWindow() {
-        let winProductDelete = $('#window-product-delete');
         this.overlay.fadeIn(400);
         this.deleteWindow.fadeIn();
         this.deleteWindow.animate({top: '50%'}, 200);
     }
 
-    RenderAddWindow(){
+    RenderAddWindow() {
+        this.cleanFields();
         this.overlay.fadeIn(400);
         this.addWindow.fadeIn();
-        this.addWindow.animate({ top: '30%' }, 200);
+        this.addWindow.animate({top: '30%'}, 200);
         this.HideBlock($('#block-country'));
         this.HideBlock($('#block-city'));
+        this.HideBlock($('#btnEditProduct'));
+        this.ShowBlock($('#btnAddProduct'));
         $('#delivery-product').change(this.changeSelectHandler.bind(this));
-        $('#count-product').on('change keyup input click', this.pressHandler);
-        $('#price-product').focusout(this.formatPriceHandler);
-        $('#price-product').focusin(this.formatNumberHandler);
 
+    }
 
+    RenderEditWindow(productData) {
+        this.overlay.fadeIn(400);
+        this.addWindow.fadeIn();
+        this.addWindow.animate({top: '30%'}, 200);
+        this.HideBlock($('#btnAddProduct'));
+        this.ShowBlock($('#btnEditProduct'));
+        $('#delivery-product').change(this.changeSelectHandler.bind(this));
+        $('#name-product').val(productData.name);
+        $('#email-supplier').val(productData.email);
+        $('#count-product').val(productData.count);
+        $('#price-product').val(productData.price);
+    }
 
+    cleanFields() {
+        $('.form-add-product')[0].reset();
     }
 
 
@@ -74,23 +91,15 @@ export class ProductRenderer {
         this.RenderList(productsList);
     }
 
-    HideBlock($elem){
+    HideBlock($elem) {
         $elem.css('display', 'none');
     }
-    ShowBlock($elem){
+
+    ShowBlock($elem) {
         $elem.css('display', 'block');
     }
-    HideError($field){
-        $field.css('border-color', '#ccc');
-        $field.next().css('display', 'none');
-    }
-    ShowError($field, text){
-        $field.css('border-color', '#eb7e87');
-        $field.next().html(text);
-        $field.next().css('color', 'red');
-        $field.next().css('display', 'inline-block');
-    }
-    changeSelectHandler(){
+
+    changeSelectHandler() {
         let selectedCheckbox = $('#delivery-product :selected');
         if (selectedCheckbox.text() === 'Country') {
             this.ShowBlock($('#block-country'));
@@ -103,54 +112,31 @@ export class ProductRenderer {
             this.HideBlock($('#block-city'));
         }
     }
-
-    ShowErrors(messages){
-        let inputs = {
-            name: $('#name-product'),
-            email: $('#email-supplier'),
-            count: $('#count-product'),
-            price: $('#price-product')
-        };
-        // hide errors
-        for (var keyInputs in inputs) {
-            this.HideError($(inputs[keyInputs]));
-        }
-        for (let i = 0; i < messages.length; i++) {
-            let msgText = messages[i];
-            // parse name field
-            let nameField = msgText.slice(msgText.indexOf('*') + 1, msgText.lastIndexOf('*'));
-            // parse text error
-            let textError = msgText.slice(msgText.lastIndexOf('*') + 1);
-            for (keyInputs in inputs) {
-                if (keyInputs === nameField) {
-                    nameField = inputs[keyInputs];
-                    this.ShowError($(nameField), textError);
-                }
+    showSelect(product) {
+        if (product.delivery.city.length != null) {
+            $("#delivery-product [value='city']").attr("selected", "selected");
+            let city = product.delivery.city;
+            for (let i = 0; i < city.length; i++) {
+                $("#" + city[i].toUpperCase()).attr('checked', 'checked');
             }
-            // focus in error field
-            if (i === 0) {
-                $(nameField).focus();
-            }
-        }
+            // Show block
+            this.HideBlock($('#block-country'));
+            this.ShowBlock($('#block-city'));
 
-    }
-
-    pressHandler(){
-        if (this.value.match(/[^0-9]/g)) {
-            this.value = this.value.replace(/[^0-9]/g, '');
-        }
-    }
-    formatNumberHandler() {
-        if (this.value) {
-            this.value = this.value.slice(1);
-            this.value = parseFloat(this.value.replace(/,/g, '')).toFixed(2);
-        }
-    }
-    formatPriceHandler() {
-        if (this.value) {
-            let currency = '$';
-            this.value = currency + parseFloat(this.value).toFixed(2).replace(/(\d)(?=(\d{3})+\.)/g, '$1,');
-
+        } else if (product.delivery.country.length) {
+            // show value in select
+            $("#delivery-product [value='country']").attr("selected", "selected"); // add in view
+            // show checked value
+            var country = (product.delivery.country).toLowerCase();
+            $("input[name=" + country + "]").prop('checked', true);
+            // Show block
+            this.ShowBlock($('#block-country'));
+            this.HideBlock($('#block-city'));
+        } else {
+            $("#delivery-product [value='empty']").attr("selected", "selected"); // add in view
+            // Hide blocks
+            this.HideBlock($('#block-country'));
+            this.HideBlock($('#block-city'));
         }
     }
 
